@@ -19,11 +19,12 @@ import { MediaFile, CaptureError, CaptureVideoOptions } from '@awesome-cordova-p
 import { Subject } from 'rxjs';
 
 import { CoreFile, CoreFileProvider } from '@services/file';
+import { CoreFile as CoreFileSingleton } from '@singletons/file';
 import { CoreFilepool } from '@services/filepool';
 import { CoreSites } from '@services/sites';
 import { CoreMimetypeUtils } from '@services/utils/mimetype';
 import { CoreTimeUtils } from '@services/utils/time';
-import { CoreUtils } from '@services/utils/utils';
+import { CoreUtils } from '@singletons/utils';
 import { CoreWSFile, CoreWSFileUploadOptions, CoreWSUploadFileResult } from '@services/ws';
 import { makeSingleton, Translate, MediaCapture, Camera } from '@singletons';
 import { CoreLogger } from '@singletons/logger';
@@ -33,6 +34,7 @@ import { CoreFileEntry, CoreFileHelper } from '@services/file-helper';
 import { CorePath } from '@singletons/path';
 import { CorePlatform } from '@services/platform';
 import { CoreModals } from '@services/modals';
+import { CorePromiseUtils } from '@singletons/promise-utils';
 
 /**
  * File upload options.
@@ -401,7 +403,7 @@ export class CoreFileUploaderProvider {
         }
 
         if (filesObject.offline > 0) {
-            const offlineFiles = await CoreUtils.ignoreErrors(this.getStoredFiles(folderPath));
+            const offlineFiles = await CorePromiseUtils.ignoreErrors(this.getStoredFiles(folderPath));
 
             if (offlineFiles) {
                 files = files.concat(offlineFiles);
@@ -556,7 +558,7 @@ export class CoreFileUploaderProvider {
         await CoreFile.removeUnusedFiles(folderPath, files);
 
         await Promise.all(files.map(async (file) => {
-            if (!CoreUtils.isFileEntry(file)) {
+            if (!CoreFileSingleton.isFileEntry(file)) {
                 // It's an online file, add it to the result and ignore it.
                 result.online.push({
                     filename: file.filename,
@@ -631,7 +633,7 @@ export class CoreFileUploaderProvider {
         const usedNames: {[name: string]: CoreFileEntry} = {};
         const filesToUpload: FileEntry[] = [];
         files.forEach((file) => {
-            if (CoreUtils.isFileEntry(file)) {
+            if (CoreFileSingleton.isFileEntry(file)) {
                 filesToUpload.push(<FileEntry> file);
             } else {
                 // It's an online file.
@@ -678,9 +680,9 @@ export class CoreFileUploaderProvider {
         let fileName = '';
         let fileEntry: FileEntry | undefined;
 
-        const isOnline = !CoreUtils.isFileEntry(file);
+        const isOnline = !CoreFileSingleton.isFileEntry(file);
 
-        if (CoreUtils.isFileEntry(file)) {
+        if (CoreFileSingleton.isFileEntry(file)) {
             // Local file, we already have the file entry.
             fileName = file.name;
             fileEntry = file;

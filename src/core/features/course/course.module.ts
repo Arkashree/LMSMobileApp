@@ -70,7 +70,7 @@ export async function getCourseServices(): Promise<Type<unknown>[]> {
 export async function getCourseExportedObjects(): Promise<Record<string, unknown>> {
     const { CoreCourseActivityPrefetchHandlerBase } = await import('@features/course/classes/activity-prefetch-handler');
     const { CoreCourseResourcePrefetchHandlerBase } = await import('@features/course/classes/resource-prefetch-handler');
-    const { CoreCourseAccessDataType } = await import('@features/course/services/course');
+    const { CoreCourseAccessDataType } = await import('@features/course/constants');
     const { CoreCourseUnsupportedModuleComponent } =
         await import ('@features/course/components/unsupported-module/unsupported-module');
     const { CoreCourseFormatSingleActivityComponent } =
@@ -112,14 +112,14 @@ export async function getCourseStandaloneComponents(): Promise<Type<unknown>[]> 
 const routes: Routes = [
     {
         matcher: buildRegExpUrlMatcher(new RegExp(`^${COURSE_PAGE_NAME}(/deep)*`)),
-        loadChildren: () => import('@features/course/course-lazy.module').then(m => m.CoreCourseLazyModule),
+        loadChildren: () => import('@features/course/course-lazy.module'),
     },
 ];
 
 const courseIndexRoutes: Routes = [
     {
         path: CONTENTS_PAGE_NAME,
-        loadChildren: () => import('@features/course/course-contents-lazy.module').then(m => m.CoreCourseContentsLazyModule),
+        loadChildren: () => import('@features/course/course-contents-lazy.module'),
     },
 ];
 

@@ -19,9 +19,10 @@ import { CorePushNotificationsClickHandler } from '@features/pushnotifications/s
 import { CorePushNotificationsNotificationBasicData } from '@features/pushnotifications/services/pushnotifications';
 import { CoreNavigator } from '@services/navigator';
 import { CoreUrl } from '@singletons/url';
-import { CoreUtils } from '@services/utils/utils';
+import { CoreUtils } from '@singletons/utils';
 import { makeSingleton } from '@singletons';
 import { AddonCompetency } from '../competency';
+import { CorePromiseUtils } from '@singletons/promise-utils';
 
 /**
  * Handler for competencies push notifications clicks.
@@ -55,7 +56,7 @@ export class AddonCompetencyPushClickHandlerService implements CorePushNotificat
             // Open the learning plan.
             const planId = Number(contextUrlParams.id);
 
-            await CoreUtils.ignoreErrors(AddonCompetency.invalidateLearningPlan(planId, notification.site));
+            await CorePromiseUtils.ignoreErrors(AddonCompetency.invalidateLearningPlan(planId, notification.site));
 
             await CoreNavigator.navigateToSitePath(`${ADDON_COMPETENCY_LEARNING_PLANS_PAGE}/${planId}`, {
                 siteId: notification.site,
@@ -71,7 +72,9 @@ export class AddonCompetencyPushClickHandlerService implements CorePushNotificat
             const planId = Number(contextUrlParams.planid);
             const userId = Number(contextUrlParams.userid);
 
-            await CoreUtils.ignoreErrors(AddonCompetency.invalidateCompetencyInPlan(planId, competencyId, notification.site));
+            await CorePromiseUtils.ignoreErrors(
+                AddonCompetency.invalidateCompetencyInPlan(planId, competencyId, notification.site),
+            );
 
             if (courseId) {
                 await CoreNavigator.navigateToSitePath(
@@ -101,7 +104,7 @@ export class AddonCompetencyPushClickHandlerService implements CorePushNotificat
         // Open the list of plans.
         const userId = Number(contextUrlParams.userid);
 
-        await CoreUtils.ignoreErrors(AddonCompetency.invalidateLearningPlans(userId, notification.site));
+        await CorePromiseUtils.ignoreErrors(AddonCompetency.invalidateLearningPlans(userId, notification.site));
 
         await CoreNavigator.navigateToSitePath(ADDON_COMPETENCY_LEARNING_PLANS_PAGE, {
             params: { userId },

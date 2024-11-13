@@ -15,7 +15,7 @@
 import { Injectable } from '@angular/core';
 
 import { CoreNavigator } from '@services/navigator';
-import { CoreUtils } from '@services/utils/utils';
+import { CoreUtils } from '@singletons/utils';
 import { makeSingleton } from '@singletons';
 import { CorePushNotificationsClickHandler } from '@features/pushnotifications/services/push-delegate';
 import { CorePushNotificationsNotificationBasicData } from '@features/pushnotifications/services/pushnotifications';
@@ -24,6 +24,9 @@ import { AddonNotifications } from '../notifications';
 import { AddonNotificationsMainMenuHandlerService } from './mainmenu';
 import { AddonNotificationsHelper } from '../notifications-helper';
 import { CoreViewer } from '@features/viewer/services/viewer';
+import { CoreInAppBrowser } from '@singletons/iab';
+import { CorePromiseUtils } from '@singletons/promise-utils';
+import { CoreOpener } from '@singletons/opener';
 
 /**
  * Handler for non-messaging push notifications clicks.
@@ -64,7 +67,7 @@ export class AddonNotificationsPushClickHandlerService implements CorePushNotifi
      * @returns Promise resolved when done.
      */
     protected async markAsRead(notification: AddonNotificationsPushNotification): Promise<void> {
-        await CoreUtils.ignoreErrors(AddonNotificationsHelper.markNotificationAsRead(notification));
+        await CorePromiseUtils.ignoreErrors(AddonNotificationsHelper.markNotificationAsRead(notification));
     }
 
     /**
@@ -89,12 +92,12 @@ export class AddonNotificationsPushClickHandlerService implements CorePushNotifi
 
             switch (notification.customdata.appurlopenin) {
                 case 'inapp':
-                    CoreUtils.openInApp(url);
+                    CoreInAppBrowser.open(url);
 
                     return;
 
                 case 'browser':
-                    return CoreUtils.openInBrowser(url);
+                    return CoreOpener.openInBrowser(url);
 
                 default: {
                     const treated = await CoreContentLinksHelper.handleLink(url, undefined, undefined, true);
@@ -116,7 +119,7 @@ export class AddonNotificationsPushClickHandlerService implements CorePushNotifi
         }
 
         // No contexturl or cannot be handled by the app. Open the notifications page.
-        await CoreUtils.ignoreErrors(AddonNotifications.invalidateNotificationsList(notification.site));
+        await CorePromiseUtils.ignoreErrors(AddonNotifications.invalidateNotificationsList(notification.site));
 
         await CoreNavigator.navigateToSitePath(
             `${AddonNotificationsMainMenuHandlerService.PAGE_NAME}/list`,

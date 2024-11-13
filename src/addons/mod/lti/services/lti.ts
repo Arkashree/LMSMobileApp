@@ -23,10 +23,12 @@ import { CorePlatform } from '@services/platform';
 import { CoreSites, CoreSitesCommonWSOptions } from '@services/sites';
 import { CoreText } from '@singletons/text';
 import { CoreUrl } from '@singletons/url';
-import { CoreUtils } from '@services/utils/utils';
+import { CoreOpener } from '@singletons/opener';
 import { CoreWSExternalFile, CoreWSExternalWarning } from '@services/ws';
 import { makeSingleton, Translate } from '@singletons';
 import { ADDON_MOD_LTI_COMPONENT } from '../constants';
+import { CoreCacheUpdateFrequency } from '@/core/constants';
+import { CoreInAppBrowser } from '@singletons/iab';
 
 /**
  * Service that provides some features for LTI.
@@ -96,7 +98,7 @@ export class AddonModLtiProvider {
         };
         const preSets: CoreSiteWSPreSets = {
             cacheKey: this.getLtiCacheKey(courseId),
-            updateFrequency: CoreSite.FREQUENCY_RARELY,
+            updateFrequency: CoreCacheUpdateFrequency.RARELY,
             component: ADDON_MOD_LTI_COMPONENT,
             ...CoreSites.getReadingStrategyPreSets(options.readingStrategy), // Include reading strategy preSets.
         };
@@ -252,10 +254,10 @@ export class AddonModLtiProvider {
         const launcherUrl = await this.generateLauncher(url, params);
 
         if (CorePlatform.isMobile()) {
-            CoreUtils.openInApp(launcherUrl);
+            CoreInAppBrowser.open(launcherUrl);
         } else {
             // In desktop open in browser, we found some cases where inapp caused JS issues.
-            CoreUtils.openInBrowser(launcherUrl);
+            CoreOpener.openInBrowser(launcherUrl);
         }
     }
 

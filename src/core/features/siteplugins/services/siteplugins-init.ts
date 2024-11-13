@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Injectable } from '@angular/core';
-
 import { AddonMessageOutputDelegate } from '@addons/messageoutput/services/messageoutput-delegate';
 import { AddonModAssignFeedbackDelegate } from '@addons/mod/assign/services/feedback-delegate';
 import { AddonModAssignSubmissionDelegate } from '@addons/mod/assign/services/submission-delegate';
@@ -27,7 +25,6 @@ import { CoreCourseOptionsDelegate } from '@features/course/services/course-opti
 import { CoreCourseFormatDelegate } from '@features/course/services/format-delegate';
 import { CoreCourseModuleDelegate } from '@features/course/services/module-delegate';
 import { CoreCourseModulePrefetchDelegate } from '@features/course/services/module-prefetch-delegate';
-import { CoreCoursesProvider } from '@features/courses/services/courses';
 import { CoreMainMenuDelegate } from '@features/mainmenu/services/mainmenu-delegate';
 import { CoreQuestionBehaviourDelegate } from '@features/question/services/behaviour-delegate';
 import { CoreQuestionDelegate } from '@features/question/services/question-delegate';
@@ -38,7 +35,7 @@ import { CoreFilepool } from '@services/filepool';
 import { CoreLang } from '@services/lang';
 import { CoreSites } from '@services/sites';
 import { CoreText } from '@singletons/text';
-import { CoreUtils } from '@services/utils/utils';
+import { CorePromiseUtils } from '@singletons/promise-utils';
 import { CoreWS } from '@services/ws';
 import { CoreEvents } from '@singletons/events';
 import { CoreLogger } from '@singletons/logger';
@@ -75,7 +72,6 @@ import {
     CoreSitePluginsMainMenuHomeHandlerData,
     CoreSitePluginsEnrolHandlerData,
 } from './siteplugins';
-import { makeSingleton } from '@singletons';
 import { CoreMainMenuHomeDelegate } from '@features/mainmenu/services/home-delegate';
 import { CoreSitePluginsMainMenuHomeHandler } from '../classes/handlers/main-menu-home-handler';
 import { AddonWorkshopAssessmentStrategyDelegate } from '@addons/mod/workshop/services/assessment-strategy-delegate';
@@ -89,6 +85,7 @@ import { CorePath } from '@singletons/path';
 import { CoreEnrolAction, CoreEnrolDelegate } from '@features/enrol/services/enrol-delegate';
 import { CoreSitePluginsEnrolHandler } from '../classes/handlers/enrol-handler';
 import { CORE_SITE_PLUGINS_COMPONENT } from '../constants';
+import { CORE_COURSES_MY_COURSES_CHANGED_EVENT } from '@features/courses/constants';
 
 /**
  * Helper service to provide functionalities regarding site plugins. It basically has the features to load and register site
@@ -99,11 +96,9 @@ import { CORE_SITE_PLUGINS_COMPONENT } from '../constants';
  * @todo Support ViewChild and similar in site plugins. Possible solution: make components and directives inject the instance
  * inside the host DOM element?
  */
-@Injectable({ providedIn: 'root' })
-export class CoreSitePluginsInitService {
+export class CoreSitePluginsInit {
 
-    protected logger: CoreLogger;
-    protected courseRestrictHandlers: Record<string, {
+    protected static courseRestrictHandlers: Record<string, {
         plugin: CoreSitePluginsPlugin;
         handlerName: string;
         handlerSchema: CoreSitePluginsCourseOptionHandlerData | CoreSitePluginsUserHandlerData;
@@ -112,18 +107,21 @@ export class CoreSitePluginsInitService {
 
     protected static readonly HANDLER_DISABLED = 'core_site_plugins_helper_handler_disabled';
 
-    constructor() {
-        this.logger = CoreLogger.getInstance('CoreSitePluginsInit');
+    protected static logger = CoreLogger.getInstance('CoreSitePluginsInit');
+
+    // Avoid creating singleton instances.
+    private constructor() {
+        // Nothing to do.
     }
 
     /**
      * Initialize.
      */
-    init(): void {
+    static init(): void {
         // Fetch the plugins on login.
         CoreEvents.on(CoreEvents.LOGIN, async (data) => {
             try {
-                const plugins = await CoreUtils.ignoreErrors(CoreSitePlugins.getPlugins(data.siteId));
+                const plugins = await CorePromiseUtils.ignoreErrors(CoreSitePlugins.getPlugins(data.siteId));
 
                 // Plugins fetched, check that site hasn't changed.
                 if (data.siteId !== CoreSites.getCurrentSiteId() || !plugins?.length) {
@@ -144,7 +142,7 @@ export class CoreSitePluginsInitService {
         });
 
         // Re-load plugins restricted for courses when the list of user courses changes.
-        CoreEvents.on(CoreCoursesProvider.EVENT_MY_COURSES_CHANGED, (data) => {
+        CoreEvents.on(CORE_COURSES_MY_COURSES_CHANGED_EVENT, (data) => {
             if (data.siteId && data.siteId === CoreSites.getCurrentSiteId() && data.added.length) {
                 this.reloadCourseRestrictHandlers();
             }
@@ -160,7 +158,7 @@ export class CoreSitePluginsInitService {
      * @param siteId Site ID. If not provided, current site.
      * @returns Promise resolved with the CSS code.
      */
-    protected async downloadStyles(
+    protected static async downloadStyles(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerData,
@@ -183,14 +181,14 @@ export class CoreSitePluginsInitService {
         const componentId = uniqueName + '#main';
 
         // Remove the CSS files for this handler that aren't used anymore. Don't block the call for this.
-        const files = await CoreUtils.ignoreErrors(
+        const files = await CorePromiseUtils.ignoreErrors(
             CoreFilepool.getFilesByComponent(site.getId(), CORE_SITE_PLUGINS_COMPONENT, componentId),
         );
 
         files?.forEach((file) => {
             if (file.url !== url) {
                 // It's not the current file, delete it.
-                CoreUtils.ignoreErrors(CoreFilepool.removeFileByUrl(site.getId(), file.url));
+                CorePromiseUtils.ignoreErrors(CoreFilepool.removeFileByUrl(site.getId(), file.url));
             }
         });
 
@@ -230,7 +228,7 @@ export class CoreSitePluginsInitService {
      * @returns Promise resolved when done. It returns the results of the getContent call and the data returned by
      *         the init JS (if any).
      */
-    protected async executeHandlerInit(
+    protected static async executeHandlerInit(
         plugin: CoreSitePluginsPlugin,
         handlerSchema: CoreSitePluginsHandlerData,
     ): Promise<CoreSitePluginsContent | null> {
@@ -249,7 +247,7 @@ export class CoreSitePluginsInitService {
      * @param isInit Whether it's the init method.
      * @returns Promise resolved with the results of the getContent call and the data returned by the JS (if any).
      */
-    protected async executeMethodAndJS(
+    protected static async executeMethodAndJS(
         plugin: CoreSitePluginsPlugin,
         method: string,
         isInit?: boolean,
@@ -270,7 +268,7 @@ export class CoreSitePluginsInitService {
         // Create a "fake" instance to hold all the libraries.
         const instance = {
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            HANDLER_DISABLED: CoreSitePluginsInitService.HANDLER_DISABLED,
+            HANDLER_DISABLED: CoreSitePluginsInit.HANDLER_DISABLED,
         };
 
         await CoreCompile.loadLibraries();
@@ -285,7 +283,7 @@ export class CoreSitePluginsInitService {
         // Now execute the javascript using this instance.
         result.jsResult = CoreCompile.executeJavascript(instance, result.javascript);
 
-        if (result.jsResult === CoreSitePluginsInitService.HANDLER_DISABLED) {
+        if (result.jsResult === CoreSitePluginsInit.HANDLER_DISABLED) {
             // The "disabled" field was added in 3.8, this is a workaround for previous versions.
             result.disabled = true;
         }
@@ -299,7 +297,7 @@ export class CoreSitePluginsInitService {
      * @param addon Name of the addon (plugin.addon).
      * @returns Prefix.
      */
-    protected getPrefixForStrings(addon: string): string {
+    protected static getPrefixForStrings(addon: string): string {
         if (addon) {
             return 'plugin.' + addon + '.';
         }
@@ -314,7 +312,7 @@ export class CoreSitePluginsInitService {
      * @param key The key of the string. Defaults to pluginname.
      * @returns Full string key.
      */
-    protected getPrefixedString(addon: string, key = 'pluginname'): string {
+    protected static getPrefixedString(addon: string, key = 'pluginname'): string {
         return this.getPrefixForStrings(addon) + key;
     }
 
@@ -323,7 +321,7 @@ export class CoreSitePluginsInitService {
      *
      * @param plugin Data of the plugin.
      */
-    protected loadLangStrings(plugin: CoreSitePluginsPlugin): void {
+    protected static loadLangStrings(plugin: CoreSitePluginsPlugin): void {
         if (!plugin.parsedLang) {
             return;
         }
@@ -340,7 +338,7 @@ export class CoreSitePluginsInitService {
      *
      * @param plugin Data of the plugin.
      */
-    protected async loadSitePlugin(plugin: CoreSitePluginsPlugin): Promise<void> {
+    protected static async loadSitePlugin(plugin: CoreSitePluginsPlugin): Promise<void> {
         this.logger.debug('Load site plugin:', plugin);
 
         if (!plugin.parsedHandlers && plugin.handlers) {
@@ -367,7 +365,7 @@ export class CoreSitePluginsInitService {
         if (plugin.parsedHandlers) {
             // Register all the handlers.
             const parsedHandlers = plugin.parsedHandlers;
-            await CoreUtils.allPromises(Object.keys(parsedHandlers).map(async (name) => {
+            await CorePromiseUtils.allPromises(Object.keys(parsedHandlers).map(async (name) => {
                 await this.registerHandler(plugin, name, parsedHandlers[name]);
             }));
         }
@@ -378,10 +376,10 @@ export class CoreSitePluginsInitService {
      *
      * @param plugins The plugins to load.
      */
-    protected async loadSitePlugins(plugins: CoreSitePluginsPlugin[]): Promise<void> {
+    protected static async loadSitePlugins(plugins: CoreSitePluginsPlugin[]): Promise<void> {
         this.courseRestrictHandlers = {};
 
-        await CoreUtils.allPromises(plugins.map(async (plugin) => {
+        await CorePromiseUtils.allPromises(plugins.map(async (plugin) => {
             const pluginPromise = this.loadSitePlugin(plugin);
             CoreSitePlugins.registerSitePluginPromise(plugin.component, pluginPromise);
 
@@ -399,7 +397,7 @@ export class CoreSitePluginsInitService {
      * @param version Styles version.
      * @param siteId Site ID. If not provided, current site.
      */
-    protected loadStyles(
+    protected static loadStyles(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         fileUrl: string,
@@ -433,7 +431,7 @@ export class CoreSitePluginsInitService {
         }
 
         // Styles have been loaded, now treat the CSS.
-        CoreUtils.ignoreErrors(
+        CorePromiseUtils.ignoreErrors(
             CoreFilepool.treatCSSCode(siteId, fileUrl, cssCode, CORE_SITE_PLUGINS_COMPONENT, uniqueName, version),
         );
     }
@@ -445,7 +443,7 @@ export class CoreSitePluginsInitService {
      * @param handlerName Name of the handler in the plugin.
      * @param handlerSchema Data about the handler.
      */
-    protected async registerHandler(
+    protected static async registerHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerData,
@@ -572,7 +570,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns A promise resolved with a string to identify the handler.
      */
-    protected async registerComponentInitHandler<T extends CoreDelegateHandler>(
+    protected static async registerComponentInitHandler<T extends CoreDelegateHandler>(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsInitHandlerData,
@@ -631,7 +629,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerAssignFeedbackHandler(
+    protected static registerAssignFeedbackHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -659,7 +657,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerAssignSubmissionHandler(
+    protected static registerAssignSubmissionHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -688,7 +686,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of init function.
      * @returns A string to identify the handler.
      */
-    protected registerBlockHandler(
+    protected static registerBlockHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsBlockHandlerData,
@@ -715,7 +713,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns A string to identify the handler.
      */
-    protected registerCourseFormatHandler(
+    protected static registerCourseFormatHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsCourseFormatHandlerData,
@@ -741,7 +739,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerCourseOptionHandler(
+    protected static registerCourseOptionHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsCourseOptionHandlerData,
@@ -791,7 +789,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of init function.
      * @returns A string to identify the handler.
      */
-    protected async registerEnrolHandler(
+    protected static async registerEnrolHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsEnrolHandlerData,
@@ -853,7 +851,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerMainMenuHandler(
+    protected static registerMainMenuHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsMainMenuHandlerData,
@@ -888,7 +886,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerMessageOutputHandler(
+    protected static registerMessageOutputHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsMessageOutputHandlerData,
@@ -924,7 +922,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerModuleHandler(
+    protected static registerModuleHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsCourseModuleHandlerData,
@@ -978,7 +976,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerQuestionHandler(
+    protected static registerQuestionHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -1002,7 +1000,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerQuestionBehaviourHandler(
+    protected static registerQuestionBehaviourHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -1029,7 +1027,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerQuizAccessRuleHandler(
+    protected static registerQuizAccessRuleHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -1054,7 +1052,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerSettingsHandler(
+    protected static registerSettingsHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsSettingsHandlerData,
@@ -1089,7 +1087,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerUserProfileHandler(
+    protected static registerUserProfileHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsUserHandlerData,
@@ -1132,7 +1130,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerUserProfileFieldHandler(
+    protected static registerUserProfileFieldHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -1159,7 +1157,7 @@ export class CoreSitePluginsInitService {
      * @param handlerSchema Data about the handler.
      * @returns Promise resolved with a string to identify the handler.
      */
-    protected registerWorkshopAssessmentStrategyHandler(
+    protected static registerWorkshopAssessmentStrategyHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsHandlerCommonData,
@@ -1180,7 +1178,7 @@ export class CoreSitePluginsInitService {
     /**
      * Reload the handlers that are restricted to certain courses.
      */
-    protected async reloadCourseRestrictHandlers(): Promise<void> {
+    protected static async reloadCourseRestrictHandlers(): Promise<void> {
         if (!Object.keys(this.courseRestrictHandlers).length) {
             // No course restrict handlers, nothing to do.
             return;
@@ -1218,7 +1216,7 @@ export class CoreSitePluginsInitService {
      * @param initResult Result of the init WS call.
      * @returns A string to identify the handler.
      */
-    protected registerMainMenuHomeHandler(
+    protected static registerMainMenuHomeHandler(
         plugin: CoreSitePluginsPlugin,
         handlerName: string,
         handlerSchema: CoreSitePluginsMainMenuHomeHandlerData,
@@ -1245,5 +1243,3 @@ export class CoreSitePluginsInitService {
     }
 
 }
-
-export const CoreSitePluginsInit = makeSingleton(CoreSitePluginsInitService);

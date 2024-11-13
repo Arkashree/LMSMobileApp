@@ -30,7 +30,6 @@ import { CoreDynamicComponent } from '@components/dynamic-component/dynamic-comp
 import { CoreCourseAnyCourseData } from '@features/courses/services/courses';
 import {
     CoreCourse,
-    CoreCourseProvider,
     sectionContentIsModule,
 } from '@features/course/services/course';
 import {
@@ -41,7 +40,7 @@ import {
 import { CoreCourseFormatDelegate } from '@features/course/services/format-delegate';
 import { CoreEventObserver, CoreEvents } from '@singletons/events';
 import { AccordionGroupChangeEventDetail, IonContent } from '@ionic/angular';
-import { CoreUtils } from '@services/utils/utils';
+import { CorePromiseUtils } from '@singletons/promise-utils';
 import { CoreCourseIndexSectionWithModule } from '../course-index/course-index';
 import { CoreBlockHelper } from '@features/block/services/block-helper';
 import { CoreNavigator } from '@services/navigator';
@@ -57,7 +56,12 @@ import { CoreModals } from '@services/modals';
 import { CoreSharedModule } from '@/core/shared.module';
 import { CoreBlockComponentsModule } from '@features/block/components/components.module';
 import { CoreSites } from '@services/sites';
-import { COURSE_ALL_SECTIONS_PREFERRED_PREFIX, COURSE_EXPANDED_SECTIONS_PREFIX } from '@features/course/constants';
+import {
+    COURSE_ALL_SECTIONS_ID,
+    COURSE_ALL_SECTIONS_PREFERRED_PREFIX,
+    COURSE_EXPANDED_SECTIONS_PREFIX,
+    COURSE_STEALTH_MODULES_SECTION_ID,
+} from '@features/course/constants';
 import { toBoolean } from '@/core/transforms/boolean';
 import { CoreInfiniteLoadingComponent } from '@components/infinite-loading/infinite-loading';
 import { CoreSite } from '@classes/sites/site';
@@ -129,8 +133,8 @@ export class CoreCourseFormatComponent implements OnInit, OnChanges, OnDestroy {
     selectedSection?: CoreCourseSectionToDisplay;
     previousSection?: CoreCourseSectionToDisplay;
     nextSection?: CoreCourseSectionToDisplay;
-    allSectionsId = CoreCourseProvider.ALL_SECTIONS_ID;
-    stealthModulesSectionId = CoreCourseProvider.STEALTH_MODULES_SECTION_ID;
+    allSectionsId = COURSE_ALL_SECTIONS_ID;
+    stealthModulesSectionId = COURSE_STEALTH_MODULES_SECTION_ID;
     loaded = false;
     lastModuleViewed?: CoreCourseViewedModulesDBRecord;
     viewedModules: Record<number, boolean> = {};
@@ -299,7 +303,7 @@ export class CoreCourseFormatComponent implements OnInit, OnChanges, OnDestroy {
      * @param sections Sections to treat.
      */
     protected async treatSections(sections: CoreCourseSectionToDisplay[]): Promise<void> {
-        const hasAllSections = sections[0].id === CoreCourseProvider.ALL_SECTIONS_ID;
+        const hasAllSections = sections[0].id === COURSE_ALL_SECTIONS_ID;
         const hasSeveralSections = sections.length > 2 || (sections.length === 2 && !hasAllSections);
 
         await this.initializeViewedModules();
@@ -735,7 +739,7 @@ export class CoreCourseFormatComponent implements OnInit, OnChanges, OnDestroy {
      * @param firstLoad Whether it's the first load when opening the course.
      */
     async logView(sectionNumber?: number, firstLoad = false): Promise<void> {
-        await CoreUtils.ignoreErrors(
+        await CorePromiseUtils.ignoreErrors(
             CoreCourse.logView(this.course.id, sectionNumber),
         );
 
@@ -797,7 +801,7 @@ export class CoreCourseFormatComponent implements OnInit, OnChanges, OnDestroy {
      * Initializes the expanded sections for the course.
      */
     protected async initializeExpandedSections(): Promise<void> {
-        const expandedSections = await CoreUtils.ignoreErrors(
+        const expandedSections = await CorePromiseUtils.ignoreErrors(
             this.currentSite?.getLocalSiteConfig<string>(`${COURSE_EXPANDED_SECTIONS_PREFIX}${this.course.id}`),
         );
 
